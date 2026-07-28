@@ -1,7 +1,7 @@
 name: ServuxPaper
 version: '${version}'
 main: fi.dy.masa.servux.paper.ServuxPaperPlugin
-api-version: '26.1'
+api-version: '26.2'
 description: 'PaperMC port of Servux''s MiniHUD server-side protocol support'
 author: masa
 website: https://github.com/maruohon/servux

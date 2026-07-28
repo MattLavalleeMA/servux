@@ -15,6 +15,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 /**
@@ -85,7 +86,7 @@ public class EntitiesDataProvider
             return;
         }
 
-        if (entity.getType() == EntityType.PLAYER)
+        if (entity.getType() == EntityTypes.PLAYER)
         {
             if (!this.hasPlayerInventoryPermission(player))
             {
