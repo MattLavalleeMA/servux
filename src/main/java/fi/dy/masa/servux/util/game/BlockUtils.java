@@ -19,8 +19,16 @@ import net.minecraft.world.level.block.state.properties.Property;
 import com.google.common.base.Splitter;
 import org.jetbrains.annotations.NotNull;
 
+import fi.dy.masa.servux.schematic.conversion.SchematicConversionMaps;
+
 public class BlockUtils
 {
+    // 26.3+ uses "id" and "properties"
+    public static final String BLOCK_STATE_NAME = "Name";
+    public static final String BLOCK_STATE_PROPERTIES = "Properties";
+    public static final String VANILLA_BLOCK_STATE_NAME = "id";
+    public static final String VANILLA_BLOCK_STATE_PROPERTIES = "properties";
+
     private static final Splitter COMMA_SPLITTER = Splitter.on(',');
     private static final Splitter EQUAL_SPLITTER = Splitter.on('=').limit(2);
 
@@ -99,13 +107,15 @@ public class BlockUtils
      * The string should be in either one of the following formats:<br>
      * 'minecraft:stone' or 'minecraft:smooth_stone_slab[half=top,waterlogged=false]'
      */
-    public static Optional<BlockState> getBlockStateFromString(String str)
+    public static Optional<BlockState> getBlockStateFromString(String str, int minecraftDataVersion)
     {
         int index = str.indexOf("["); // [f=b]
         String blockName = index != -1 ? str.substring(0, index) : str;
 
         try
         {
+            // Run Data Fixer
+            blockName = SchematicConversionMaps.updateBlockName(blockName, minecraftDataVersion);
             Identifier id = Identifier.tryParse(blockName);
 
             if (id != null && BuiltInRegistries.BLOCK.containsKey(id))

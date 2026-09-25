@@ -28,12 +28,12 @@ public abstract class MixinMinecraftServer
 	@Shadow protected abstract GlobalPos selectLevelLoadFocusPos();
 
 	@Inject(method = "tickServer", at = @At(value = "RETURN", ordinal = 1))
-    private void servux_onTickEnd(BooleanSupplier supplier, CallbackInfo ci,
+    private void servux_onTickEnd(BooleanSupplier haveTime, CallbackInfo ci,
                                   @Local(name = "profiler") ProfilerFiller profiler)
     {
         profiler.push("servux_tick");
-        DataProviderManager.INSTANCE.tickProviders((MinecraftServer) (Object) this, this.tickCount, profiler);
         TaskScheduler.getInstance().runTasks(profiler);
+        DataProviderManager.INSTANCE.tickProviders((MinecraftServer) (Object) this, this.tickCount, profiler);
         profiler.pop();
     }
 
@@ -64,13 +64,13 @@ public abstract class MixinMinecraftServer
     }
 
     @Inject(method = "reloadResources", at = @At("HEAD"))
-    private void servux_startResourceReload(Collection<String> collection, CallbackInfoReturnable<CompletableFuture<Void>> cir)
+    private void servux_startResourceReload(Collection<String> packsToEnable, CallbackInfoReturnable<CompletableFuture<Void>> cir)
     {
         ((ServerHandler) ServerHandler.getInstance()).onServerResourceReloadPre((MinecraftServer) (Object) this, this.getResourceManager());
     }
 
     @Inject(method = "reloadResources", at = @At("TAIL"))
-    private void servux_endResourceReload(Collection<String> collection, CallbackInfoReturnable<CompletableFuture<Void>> cir)
+    private void servux_endResourceReload(Collection<String> packsToEnable, CallbackInfoReturnable<CompletableFuture<Void>> cir)
     {
         cir.getReturnValue().handleAsync((value, throwable) ->
         {
