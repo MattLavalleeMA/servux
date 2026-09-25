@@ -35,7 +35,7 @@ public class EntitiesDataProvider
     public static final EntitiesDataProvider INSTANCE = new EntitiesDataProvider();
 
     public static final String CHANNEL_ID = "servux:entity_data";
-    public static final int PROTOCOL_VERSION = 1;
+    public static final int PROTOCOL_VERSION = ServuxEntitiesPacket.PROTOCOL_VERSION;
 
     private Plugin plugin;
 

@@ -66,6 +66,7 @@ public class EntitiesChannel implements PluginMessageListener
             case PACKET_C2S_METADATA_REQUEST -> EntitiesDataProvider.INSTANCE.sendMetadata(player);
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> EntitiesDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> EntitiesDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
+            case PACKET_C2S_UNREGISTER_REPLY -> ServuxPaperReference.debugLog("entity_data: player {} unregistered", player.getName());
             default -> ServuxPaperReference.logger().warn("EntitiesChannel#onPluginMessageReceived: unexpected packet type '{}' from player {}", packet.getType(), player.getName());
         }
     }

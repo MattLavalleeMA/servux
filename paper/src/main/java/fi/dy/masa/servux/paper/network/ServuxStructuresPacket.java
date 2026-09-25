@@ -21,7 +21,7 @@ import net.minecraft.network.FriendlyByteBuf;
  */
 public class ServuxStructuresPacket
 {
-    public static final int PROTOCOL_VERSION = 2;
+    public static final int PROTOCOL_VERSION = 3;
 
     public enum Type
     {

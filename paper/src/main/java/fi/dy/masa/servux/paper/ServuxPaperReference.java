@@ -17,8 +17,10 @@ public final class ServuxPaperReference
 {
     public static final String MOD_ID = "servux";
     public static final String MOD_TYPE = "paper";
+    /** MiniHUD rejects any metadata whose "servux" string doesn't start with {@code servux-fabric-<mc>}. */
+    private static final String WIRE_MOD_TYPE = "fabric";
 
-    private static String modString = MOD_ID + "-" + MOD_TYPE + "-unknown";
+    private static String modString = MOD_ID + "-" + WIRE_MOD_TYPE + "-unknown-" + MOD_TYPE;
     private static boolean debugLogEnabled = false;
     private static Logger logger;
 
@@ -29,7 +31,7 @@ public final class ServuxPaperReference
     /** Call once from {@code onEnable()}. */
     public static void init(Plugin plugin)
     {
-        modString = MOD_ID + "-" + MOD_TYPE + "-" + ServerBuildInfo.buildInfo().minecraftVersionId() + "-" + plugin.getPluginMeta().getVersion();
+        modString = MOD_ID + "-" + WIRE_MOD_TYPE + "-" + ServerBuildInfo.buildInfo().minecraftVersionId() + "-" + plugin.getPluginMeta().getVersion() + "-" + MOD_TYPE;
         logger = plugin.getSLF4JLogger();
     }
 

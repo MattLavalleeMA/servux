@@ -82,6 +82,7 @@ public class HudMetadataChannel implements PluginMessageListener
             case PACKET_C2S_SPAWN_DATA_REQUEST -> this.sendSpawnData(player);
             case PACKET_C2S_RECIPE_MANAGER_REQUEST -> HudDataProvider.INSTANCE.sendRecipeManager(player);
             case PACKET_C2S_DATA_LOGGER_REQUEST -> HudDataProvider.INSTANCE.updateLoggerSubscription(player, packet.getCompound());
+            case PACKET_C2S_UNREGISTER_REPLY -> HudDataProvider.INSTANCE.removeSubscriber(player);
             default -> ServuxPaperReference.logger().warn("HudMetadataChannel#onPluginMessageReceived: unexpected packet type '{}' from player {}", packet.getType(), player.getName());
         }
     }

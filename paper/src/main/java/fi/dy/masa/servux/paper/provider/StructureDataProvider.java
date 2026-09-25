@@ -1,5 +1,6 @@
 package fi.dy.masa.servux.paper.provider;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -16,6 +17,7 @@ import fi.dy.masa.servux.paper.ServuxPaperConfig;
 import fi.dy.masa.servux.paper.ServuxPaperReference;
 import fi.dy.masa.servux.paper.network.PacketSplitter;
 import fi.dy.masa.servux.paper.network.ServuxStructuresPacket;
+import fi.dy.masa.servux.paper.util.DataByteBufUtils;
 import fi.dy.masa.servux.paper.util.Timeout;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -54,7 +56,7 @@ public class StructureDataProvider
     public static final StructureDataProvider INSTANCE = new StructureDataProvider();
 
     public static final String CHANNEL_ID = "servux:structures";
-    public static final int PROTOCOL_VERSION = 2;
+    public static final int PROTOCOL_VERSION = ServuxStructuresPacket.PROTOCOL_VERSION;
 
     private final Map<UUID, World> registeredWorld = new HashMap<>();
     private final Map<UUID, Map<ChunkPos, Timeout>> timeouts = new HashMap<>();
@@ -262,7 +264,16 @@ public class StructureDataProvider
         nbt.put("Structures", list);
 
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        buf.writeNbt(nbt);
+
+        try
+        {
+            DataByteBufUtils.write(buf, nbt);
+        }
+        catch (IOException e)
+        {
+            ServuxPaperReference.logger().error("StructureDataProvider#sendStructures: error encoding structure data: [{}]", e.getLocalizedMessage());
+            return;
+        }
 
         PacketSplitter.send(CHANNEL_ID, this.plugin, player, ByteBufUtil.getBytes(buf),
                              bytes -> ServuxStructuresPacket.StructureDataFragment(bytes).toBytes());

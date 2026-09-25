@@ -1,5 +1,6 @@
 package fi.dy.masa.servux.paper.provider;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,6 +24,7 @@ import fi.dy.masa.servux.paper.loggers.MobCapsLogger;
 import fi.dy.masa.servux.paper.loggers.TpsLogger;
 import fi.dy.masa.servux.paper.network.PacketSplitter;
 import fi.dy.masa.servux.paper.network.ServuxHudPacket;
+import fi.dy.masa.servux.paper.util.DataByteBufUtils;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
@@ -48,7 +50,7 @@ public class HudDataProvider
     public static final HudDataProvider INSTANCE = new HudDataProvider();
 
     public static final String CHANNEL_ID = "servux:hud_metadata";
-    public static final int PROTOCOL_VERSION = 2;
+    public static final int PROTOCOL_VERSION = ServuxHudPacket.PROTOCOL_VERSION;
 
     private static final String PERMISSION_SHARE_SEED = "servux.hud_data.share_seed";
     private static final String PERMISSION_SHARE_WEATHER = "servux.hud_data.share_weather_status";
@@ -334,7 +336,16 @@ public class HudDataProvider
         nbt.put("RecipeManager", list);
 
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        buf.writeNbt(nbt);
+
+        try
+        {
+            DataByteBufUtils.write(buf, nbt);
+        }
+        catch (IOException e)
+        {
+            ServuxPaperReference.logger().error("HudDataProvider#sendRecipeManager: error encoding recipe data: [{}]", e.getLocalizedMessage());
+            return;
+        }
 
         PacketSplitter.send(CHANNEL_ID, this.plugin, player, ByteBufUtil.getBytes(buf),
                              bytes -> ServuxHudPacket.ResponseS2CData(bytes).toBytes());

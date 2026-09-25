@@ -3,6 +3,7 @@ package fi.dy.masa.servux.paper.network;
 import javax.annotation.Nullable;
 
 import fi.dy.masa.servux.paper.ServuxPaperReference;
+import fi.dy.masa.servux.paper.util.DataByteBufUtils;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
@@ -23,7 +24,7 @@ import net.minecraft.network.FriendlyByteBuf;
  */
 public class ServuxEntitiesPacket
 {
-    public static final int PROTOCOL_VERSION = 1;
+    public static final int PROTOCOL_VERSION = 2;
 
     public enum Type
     {
@@ -32,7 +33,8 @@ public class ServuxEntitiesPacket
         PACKET_C2S_BLOCK_ENTITY_REQUEST(3),
         PACKET_C2S_ENTITY_REQUEST(4),
         PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE(5),
-        PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE(6);
+        PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE(6),
+        PACKET_C2S_UNREGISTER_REPLY(7);
 
         private final int id;
 
@@ -104,12 +106,12 @@ public class ServuxEntitiesPacket
                 case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE ->
                 {
                     buffer.writeBlockPos(this.pos);
-                    buffer.writeNbt(this.nbt);
+                    DataByteBufUtils.write(buffer, this.nbt);
                 }
                 case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE ->
                 {
                     buffer.writeVarInt(this.entityId);
-                    buffer.writeNbt(this.nbt);
+                    DataByteBufUtils.write(buffer, this.nbt);
                 }
                 default -> buffer.writeNbt(this.nbt);
             }
@@ -122,7 +124,7 @@ public class ServuxEntitiesPacket
         return ByteBufUtil.getBytes(buffer);
     }
 
-    /** Only ever receives C2S_METADATA_REQUEST/C2S_BLOCK_ENTITY_REQUEST/C2S_ENTITY_REQUEST. */
+    /** Only ever receives C2S_METADATA_REQUEST/C2S_BLOCK_ENTITY_REQUEST/C2S_ENTITY_REQUEST/C2S_UNREGISTER_REPLY. */
     @Nullable
     public static ServuxEntitiesPacket fromBytes(byte[] data)
     {
@@ -142,13 +144,11 @@ public class ServuxEntitiesPacket
             {
                 case PACKET_C2S_BLOCK_ENTITY_REQUEST ->
                 {
-                    buffer.readVarInt(); // transaction id - unused, kept for wire compatibility
                     BlockPos pos = buffer.readBlockPos();
                     return new ServuxEntitiesPacket(type, new CompoundTag(), pos, -1);
                 }
                 case PACKET_C2S_ENTITY_REQUEST ->
                 {
-                    buffer.readVarInt(); // transaction id - unused, kept for wire compatibility
                     int entityId = buffer.readVarInt();
                     return new ServuxEntitiesPacket(type, new CompoundTag(), null, entityId);
                 }
@@ -156,6 +156,11 @@ public class ServuxEntitiesPacket
                 {
                     CompoundTag nbt = buffer.readableBytes() > 0 ? buffer.readNbt() : new CompoundTag();
                     return new ServuxEntitiesPacket(type, nbt != null ? nbt : new CompoundTag(), null, -1);
+                }
+                case PACKET_C2S_UNREGISTER_REPLY ->
+                {
+                    CompoundTag nbt = buffer.readableBytes() > 0 ? DataByteBufUtils.read(buffer) : new CompoundTag();
+                    return new ServuxEntitiesPacket(type, nbt, null, -1);
                 }
                 default ->
                 {

@@ -3,6 +3,7 @@ package fi.dy.masa.servux.paper.network;
 import javax.annotation.Nullable;
 
 import fi.dy.masa.servux.paper.ServuxPaperReference;
+import fi.dy.masa.servux.paper.util.DataByteBufUtils;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
@@ -16,15 +17,16 @@ import net.minecraft.network.FriendlyByteBuf;
  * mirroring the Fabric implementation).
  * <p>
  * Wire format must stay byte-identical to the Fabric implementation so an unmodified MiniHUD
- * client accepts it: {@code writeVarInt(packetTypeId)} followed by {@code writeNbt(compoundTag)}
- * (or raw bytes for the splitter fragment type).
+ * client accepts it: {@code writeVarInt(packetTypeId)} followed by vanilla {@code writeNbt} for the
+ * metadata types, compressed Data Tags ({@link DataByteBufUtils}) for all other NBT types, or raw
+ * bytes for the splitter fragment type.
  *
  * @see <a href="../../../../../../../../../../src/main/java/fi/dy/masa/servux/network/packet/ServuxHudPacket.java">ServuxHudPacket.java (Fabric reference)</a>
  */
 public class ServuxHudPacket
 {
     /** Must match {@code ServuxHudPacket.PROTOCOL_VERSION} on the Fabric side. */
-    public static final int PROTOCOL_VERSION = 2;
+    public static final int PROTOCOL_VERSION = 3;
 
     public enum Type
     {
@@ -36,6 +38,7 @@ public class ServuxHudPacket
         PACKET_C2S_RECIPE_MANAGER_REQUEST(6),
         PACKET_S2C_DATA_LOGGER_TICK(7),
         PACKET_C2S_DATA_LOGGER_REQUEST(8),
+        PACKET_C2S_UNREGISTER_REPLY(9),
         PACKET_S2C_NBT_RESPONSE_DATA(11);
 
         private final int id;
@@ -115,7 +118,14 @@ public class ServuxHudPacket
         {
             try
             {
-                buffer.writeNbt(this.nbt);
+                if (this.type == Type.PACKET_S2C_METADATA)
+                {
+                    buffer.writeNbt(this.nbt);
+                }
+                else
+                {
+                    DataByteBufUtils.write(buffer, this.nbt);
+                }
             }
             catch (Exception e)
             {
@@ -126,7 +136,7 @@ public class ServuxHudPacket
         return ByteBufUtil.getBytes(buffer);
     }
 
-    /** Only ever receives C2S_METADATA_REQUEST/C2S_SPAWN_DATA_REQUEST/C2S_RECIPE_MANAGER_REQUEST/C2S_DATA_LOGGER_REQUEST, all small NBT (possibly empty). */
+    /** Only ever receives C2S request/unregister types, all small NBT (possibly empty). */
     @Nullable
     public static ServuxHudPacket fromBytes(byte[] data)
     {
@@ -142,7 +152,21 @@ public class ServuxHudPacket
 
         try
         {
-            CompoundTag nbt = buffer.readableBytes() > 0 ? buffer.readNbt() : new CompoundTag();
+            CompoundTag nbt;
+
+            if (buffer.readableBytes() == 0)
+            {
+                nbt = new CompoundTag();
+            }
+            else if (type == Type.PACKET_C2S_METADATA_REQUEST)
+            {
+                nbt = buffer.readNbt();
+            }
+            else
+            {
+                nbt = DataByteBufUtils.read(buffer);
+            }
+
             return new ServuxHudPacket(type, nbt != null ? nbt : new CompoundTag(), null);
         }
         catch (Exception e)
