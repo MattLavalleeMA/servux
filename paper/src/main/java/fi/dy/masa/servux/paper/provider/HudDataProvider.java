@@ -30,6 +30,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
@@ -328,7 +329,7 @@ public class HudDataProvider
                 CompoundTag entry = new CompoundTag();
                 entry.putString("id_reg", holder.id().registry().toString());
                 entry.putString("id_value", holder.id().identifier().toString());
-                entry.put("recipe", dr.result().get());
+                entry.put("recipe", homogenizeLists(dr.result().get()));
                 list.add(entry);
             }
         }
@@ -349,6 +350,50 @@ public class HudDataProvider
 
         PacketSplitter.send(CHANNEL_ID, this.plugin, player, ByteBufUtil.getBytes(buf),
                              bytes -> ServuxHudPacket.ResponseS2CData(bytes).toBytes());
+    }
+
+    /**
+     * Vanilla wraps mixed-type list elements as {@code {"": value}} compounds, which MaLiLib's DataOps
+     * does not unwrap (e.g. fire_charge's {@code ["minecraft:gunpowder", ["minecraft:coal", ...]]}
+     * decodes as an empty ingredient list). Promote bare strings to singleton lists instead.
+     */
+    private static Tag homogenizeLists(Tag tag)
+    {
+        if (tag instanceof CompoundTag compound)
+        {
+            for (String key : compound.keySet())
+            {
+                compound.put(key, homogenizeLists(compound.get(key)));
+            }
+        }
+        else if (tag instanceof ListTag list)
+        {
+            boolean hasList = false;
+            boolean hasString = false;
+
+            for (int i = 0; i < list.size(); i++)
+            {
+                Tag element = homogenizeLists(list.get(i));
+                list.set(i, element);
+                hasList |= element instanceof ListTag;
+                hasString |= element instanceof StringTag;
+            }
+
+            if (hasList && hasString)
+            {
+                for (int i = 0; i < list.size(); i++)
+                {
+                    if (list.get(i) instanceof StringTag str)
+                    {
+                        ListTag wrapped = new ListTag();
+                        wrapped.add(str);
+                        list.set(i, wrapped);
+                    }
+                }
+            }
+        }
+
+        return tag;
     }
 
     private void send(Player player, ServuxHudPacket packet)

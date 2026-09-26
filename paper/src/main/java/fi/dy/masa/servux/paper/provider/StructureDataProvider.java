@@ -10,6 +10,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -28,8 +29,11 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
+import net.minecraft.network.protocol.common.custom.DiscardedPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
@@ -84,6 +88,30 @@ public class StructureDataProvider
         UUID uuid = player.getUniqueId();
         this.registeredWorld.put(uuid, player.getWorld());
 
+        player.sendPluginMessage(this.plugin, CHANNEL_ID, this.buildMetadata().toBytes());
+
+        int radius = Bukkit.getViewDistance() + 2;
+        this.initialSync(player, radius);
+    }
+
+    /**
+     * Sends only the metadata handshake, bypassing Bukkit's registered-channel check: at join the
+     * client has not advertised the channel yet, and MiniHUD only accepts metadata until its first
+     * 20-tick retry, so waiting for {@code minecraft:register} usually misses that window.
+     */
+    public void sendMetadataUnchecked(Player player)
+    {
+        ServerPlayer handle = ((CraftPlayer) player).getHandle();
+
+        if (handle.connection != null)
+        {
+            handle.connection.send(new ClientboundCustomPayloadPacket(
+                    new DiscardedPayload(Identifier.parse(CHANNEL_ID), this.buildMetadata().toBytes())));
+        }
+    }
+
+    private ServuxStructuresPacket buildMetadata()
+    {
         CompoundTag nbt = new CompoundTag();
         nbt.putString("name", "structure_bounding_boxes");
         nbt.putString("id", CHANNEL_ID);
@@ -91,10 +119,7 @@ public class StructureDataProvider
         nbt.putString("servux", ServuxPaperReference.modString());
         nbt.putInt("timeout", ServuxPaperConfig.structuresTimeout());
 
-        player.sendPluginMessage(this.plugin, CHANNEL_ID, ServuxStructuresPacket.Metadata(nbt).toBytes());
-
-        int radius = Bukkit.getViewDistance() + 2;
-        this.initialSync(player, radius);
+        return ServuxStructuresPacket.Metadata(nbt);
     }
 
     public void unregister(Player player)

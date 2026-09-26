@@ -27,26 +27,22 @@ import io.papermc.paper.event.packet.PlayerChunkLoadEvent;
  * Paper's {@link PlayerChunkLoadEvent} (the public-API replacement for Fabric's
  * {@code MixinServerChunkLoadingManager} mixin), and handles the structures handshake.
  * <p>
- * The handshake is request/response: MiniHUD sends {@code PACKET_C2S_STRUCTURES_REGISTER} when it
- * is ready, and the server replies with metadata after a short delay. Proactive sends on login are
- * avoided because the client's payload receiver may not be fully initialized yet, which causes the
- * metadata to be dropped and the server to incorrectly think the handshake completed.
+ * MiniHUD only accepts structures metadata between world join and its single retry at the next
+ * 20-tick boundary, and its login-time {@code STRUCTURES_REGISTER} is dropped client-side because
+ * Paper advertises its channels only after the login packet. So metadata is pushed unchecked at
+ * join, the full sync follows once the client registers the channel, and register requests are
+ * answered immediately.
  */
 public class StructuresChannel implements PluginMessageListener, Listener
 {
     public static final String CHANNEL = StructureDataProvider.CHANNEL_ID;
     private static final String PERMISSION = "servux.structures";
-    // Give the client a few ticks to finish registering its payload receiver before sending metadata.
-    private static final long HANDSHAKE_DELAY_TICKS = 8L;
 
-    // Throttle metadata replies so two triggers in quick succession (channel registration +
-    // register packet) do not spam the client, while still responding to each of MiniHUD's
-    // once-per-second retries if the handshake has not yet succeeded.
+    // Channel registration and a register packet can arrive back to back; avoid a duplicate full sync.
     private static final long HANDSHAKE_THROTTLE_TICKS = 15L;
 
     private final ServuxPaperPlugin plugin;
     private BukkitTask tickTask;
-    private final Map<UUID, BukkitTask> pendingHandshakes = new HashMap<>();
     private final Map<UUID, Long> lastHandshakeTick = new HashMap<>();
 
     public StructuresChannel(ServuxPaperPlugin plugin)
@@ -76,11 +72,6 @@ public class StructuresChannel implements PluginMessageListener, Listener
             this.tickTask = null;
         }
 
-        for (BukkitTask task : this.pendingHandshakes.values())
-        {
-            task.cancel();
-        }
-        this.pendingHandshakes.clear();
         this.lastHandshakeTick.clear();
 
         Bukkit.getMessenger().unregisterOutgoingPluginChannel(this.plugin, CHANNEL);
@@ -97,27 +88,30 @@ public class StructuresChannel implements PluginMessageListener, Listener
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event)
     {
-        ServuxPaperReference.debugLog("structures: player {} joined", event.getPlayer().getName());
+        Player player = event.getPlayer();
+
+        if (player.hasPermission(PERMISSION))
+        {
+            ServuxPaperReference.debugLog("structures: pushing metadata to player {} on join", player.getName());
+            StructureDataProvider.INSTANCE.sendMetadataUnchecked(player);
+        }
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event)
     {
-        UUID uuid = event.getPlayer().getUniqueId();
-        this.cancelHandshake(uuid);
-        this.lastHandshakeTick.remove(uuid);
+        this.lastHandshakeTick.remove(event.getPlayer().getUniqueId());
         StructureDataProvider.INSTANCE.unregister(event.getPlayer());
     }
 
     @EventHandler
     public void onPlayerRegisterChannel(PlayerRegisterChannelEvent event)
     {
-        if (!CHANNEL.equals(event.getChannel()))
+        if (CHANNEL.equals(event.getChannel()) && event.getPlayer().hasPermission(PERMISSION))
         {
-            return;
+            ServuxPaperReference.debugLog("structures: client registered channel for player {}", event.getPlayer().getName());
+            this.handshake(event.getPlayer());
         }
-
-        ServuxPaperReference.debugLog("structures: client registered channel for player {}", event.getPlayer().getName());
     }
 
     @Override
@@ -146,31 +140,18 @@ public class StructuresChannel implements PluginMessageListener, Listener
 
         switch (packet.getType())
         {
-            case PACKET_C2S_STRUCTURES_REGISTER ->
-            {
-                // Always reply to the client's register request. Relying on server-side state is
-                // not enough: an earlier proactive metadata send may have been dropped before the
-                // client payload receiver was ready, leaving the client still retrying.
-                this.scheduleHandshake(player);
-            }
+            case PACKET_C2S_STRUCTURES_REGISTER -> this.handshake(player);
             case PACKET_C2S_STRUCTURES_UNREGISTER ->
             {
-                UUID uuid = player.getUniqueId();
-                this.cancelHandshake(uuid);
-                this.lastHandshakeTick.remove(uuid);
+                this.lastHandshakeTick.remove(player.getUniqueId());
                 StructureDataProvider.INSTANCE.unregister(player);
             }
             default -> ServuxPaperReference.logger().warn("StructuresChannel#onPluginMessageReceived: unexpected packet type '{}' from player {}", packet.getType(), player.getName());
         }
     }
 
-    private void scheduleHandshake(Player player)
+    private void handshake(Player player)
     {
-        if (!player.isOnline())
-        {
-            return;
-        }
-
         UUID uuid = player.getUniqueId();
         long now = StructureDataProvider.currentTick();
         Long last = this.lastHandshakeTick.get(uuid);
@@ -181,32 +162,8 @@ public class StructuresChannel implements PluginMessageListener, Listener
             return;
         }
 
-        this.cancelHandshake(uuid);
-
-        BukkitTask task = Bukkit.getScheduler().runTaskLater(this.plugin, () ->
-        {
-            this.pendingHandshakes.remove(uuid);
-
-            if (!player.isOnline())
-            {
-                return;
-            }
-
-            ServuxPaperReference.debugLog("structures: sending metadata handshake to player {}", player.getName());
-            StructureDataProvider.INSTANCE.registerFresh(player);
-        }, HANDSHAKE_DELAY_TICKS);
-
-        this.pendingHandshakes.put(uuid, task);
+        ServuxPaperReference.debugLog("structures: sending metadata handshake to player {}", player.getName());
         this.lastHandshakeTick.put(uuid, now);
-    }
-
-    private void cancelHandshake(UUID uuid)
-    {
-        BukkitTask task = this.pendingHandshakes.remove(uuid);
-
-        if (task != null)
-        {
-            task.cancel();
-        }
+        StructureDataProvider.INSTANCE.registerFresh(player);
     }
 }
