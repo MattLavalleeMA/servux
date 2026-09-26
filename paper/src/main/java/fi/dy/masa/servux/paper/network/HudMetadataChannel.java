@@ -1,8 +1,18 @@
 package fi.dy.masa.servux.paper.network;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRegisterChannelEvent;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -16,14 +26,21 @@ import net.minecraft.nbt.CompoundTag;
  * Registers and handles the {@code servux:hud_metadata} plugin channel via the plain Bukkit
  * {@link org.bukkit.plugin.messaging.Messenger} API (no PacketEvents needed for this channel).
  * Also schedules the periodic weather/data-logger tick broadcast.
+ * <p>
+ * MiniHUD sends its single metadata request while handling the login packet, before Paper has
+ * advertised its channels via {@code minecraft:register}, so Fabric's {@code canSend()} check drops
+ * it and the client never retries until a dimension change. To cover this, metadata is pushed
+ * unsolicited shortly after join/channel registration unless the client requests it first.
  */
-public class HudMetadataChannel implements PluginMessageListener
+public class HudMetadataChannel implements PluginMessageListener, Listener
 {
     public static final String CHANNEL = HudDataProvider.CHANNEL_ID;
     private static final String PERMISSION = "servux.hud_data";
+    private static final long METADATA_PUSH_DELAY_TICKS = 10L;
 
     private final ServuxPaperPlugin plugin;
     private BukkitTask tickTask;
+    private final Map<UUID, BukkitTask> pendingMetadataPushes = new HashMap<>();
 
     public HudMetadataChannel(ServuxPaperPlugin plugin)
     {
@@ -36,6 +53,7 @@ public class HudMetadataChannel implements PluginMessageListener
 
         Bukkit.getMessenger().registerOutgoingPluginChannel(this.plugin, CHANNEL);
         Bukkit.getMessenger().registerIncomingPluginChannel(this.plugin, CHANNEL, this);
+        Bukkit.getPluginManager().registerEvents(this, this.plugin);
 
         // NOTE: the interval is read once at (re)registration time - changing `hud_data.update_interval`
         // in config.yml requires a plugin/server restart to take effect for this scheduled task.
@@ -51,8 +69,70 @@ public class HudMetadataChannel implements PluginMessageListener
             this.tickTask = null;
         }
 
+        for (BukkitTask task : this.pendingMetadataPushes.values())
+        {
+            task.cancel();
+        }
+        this.pendingMetadataPushes.clear();
+
         Bukkit.getMessenger().unregisterOutgoingPluginChannel(this.plugin, CHANNEL);
         Bukkit.getMessenger().unregisterIncomingPluginChannel(this.plugin, CHANNEL, this);
+        HandlerList.unregisterAll(this);
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event)
+    {
+        if (event.getPlayer().getListeningPluginChannels().contains(CHANNEL))
+        {
+            this.scheduleMetadataPush(event.getPlayer().getUniqueId());
+        }
+    }
+
+    @EventHandler
+    public void onPlayerRegisterChannel(PlayerRegisterChannelEvent event)
+    {
+        if (CHANNEL.equals(event.getChannel()))
+        {
+            this.scheduleMetadataPush(event.getPlayer().getUniqueId());
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event)
+    {
+        this.cancelMetadataPush(event.getPlayer().getUniqueId());
+        HudDataProvider.INSTANCE.removeSubscriber(event.getPlayer());
+    }
+
+    private void scheduleMetadataPush(UUID uuid)
+    {
+        this.cancelMetadataPush(uuid);
+
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(this.plugin, () ->
+        {
+            this.pendingMetadataPushes.remove(uuid);
+            Player player = Bukkit.getPlayer(uuid);
+
+            if (player != null && player.isOnline() && player.hasPermission(PERMISSION) &&
+                player.getListeningPluginChannels().contains(CHANNEL))
+            {
+                ServuxPaperReference.debugLog("hud_data: pushing metadata to player {}", player.getName());
+                this.sendMetadata(player);
+            }
+        }, METADATA_PUSH_DELAY_TICKS);
+
+        this.pendingMetadataPushes.put(uuid, task);
+    }
+
+    private void cancelMetadataPush(UUID uuid)
+    {
+        BukkitTask task = this.pendingMetadataPushes.remove(uuid);
+
+        if (task != null)
+        {
+            task.cancel();
+        }
     }
 
     @Override
@@ -78,7 +158,11 @@ public class HudMetadataChannel implements PluginMessageListener
 
         switch (packet.getType())
         {
-            case PACKET_C2S_METADATA_REQUEST -> this.sendMetadata(player);
+            case PACKET_C2S_METADATA_REQUEST ->
+            {
+                this.cancelMetadataPush(player.getUniqueId());
+                this.sendMetadata(player);
+            }
             case PACKET_C2S_SPAWN_DATA_REQUEST -> this.sendSpawnData(player);
             case PACKET_C2S_RECIPE_MANAGER_REQUEST -> HudDataProvider.INSTANCE.sendRecipeManager(player);
             case PACKET_C2S_DATA_LOGGER_REQUEST -> HudDataProvider.INSTANCE.updateLoggerSubscription(player, packet.getCompound());
