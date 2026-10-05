@@ -16,12 +16,21 @@ repositories {
 		name = 'papermc'
 		url = 'https://repo.papermc.io/repository/maven-public/'
 	}
+	maven {
+		name = 'viaversion'
+		url = 'https://repo.viaversion.com'
+		content { includeGroup('com.viaversion') }
+	}
 }
 
 dependencies {
 	// Mojang-mapped dev bundle for the exact Minecraft version the Fabric build targets.
 	// Version format changed for Paper 26.1+ (no more "-R0.1-SNAPSHOT"); see paper/gradle.properties.
 	paperweight.paperDevBundle(project.paper_dev_bundle_version)
+
+	// Optional (softdepend): lets the MiniHUD handshake report the connecting client's Minecraft
+	// version when ViaVersion/ViaBackwards lets older clients join. Only touched via ViaVersionHook.
+	compileOnly 'com.viaversion:viaversion-api:5.12.0'
 
 	// PacketEvents is not used: structures' chunk-watch trigger uses Paper's PlayerChunkLoadEvent, and the
 	// vanilla NbtQuery permission override was sidestepped. See paper/ARCHITECTURE.md. Only needed if that

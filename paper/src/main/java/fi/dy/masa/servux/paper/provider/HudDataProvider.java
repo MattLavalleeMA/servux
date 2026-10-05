@@ -82,7 +82,7 @@ public class HudDataProvider
         nbt.putString("name", "hud_data");
         nbt.putString("id", CHANNEL_ID);
         nbt.putInt("version", PROTOCOL_VERSION);
-        nbt.putString("servux", ServuxPaperReference.modString());
+        nbt.putString("servux", ServuxPaperReference.modString(player));
 
         this.putSpawnFields(nbt, spawn);
         this.putSeedField(nbt, player, spawn.getWorld());
@@ -97,7 +97,7 @@ public class HudDataProvider
         CompoundTag nbt = new CompoundTag();
 
         nbt.putString("id", CHANNEL_ID);
-        nbt.putString("servux", ServuxPaperReference.modString());
+        nbt.putString("servux", ServuxPaperReference.modString(player));
         nbt.putInt("version", PROTOCOL_VERSION);
 
         this.putSpawnFields(nbt, spawn);

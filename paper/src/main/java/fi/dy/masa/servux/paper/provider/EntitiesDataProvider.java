@@ -54,7 +54,7 @@ public class EntitiesDataProvider
         nbt.putString("name", "entity_data");
         nbt.putString("id", CHANNEL_ID);
         nbt.putInt("version", PROTOCOL_VERSION);
-        nbt.putString("servux", ServuxPaperReference.modString());
+        nbt.putString("servux", ServuxPaperReference.modString(player));
 
         this.send(player, ServuxEntitiesPacket.MetadataResponse(nbt));
     }

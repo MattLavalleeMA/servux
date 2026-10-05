@@ -88,7 +88,7 @@ public class StructureDataProvider
         UUID uuid = player.getUniqueId();
         this.registeredWorld.put(uuid, player.getWorld());
 
-        player.sendPluginMessage(this.plugin, CHANNEL_ID, this.buildMetadata().toBytes());
+        player.sendPluginMessage(this.plugin, CHANNEL_ID, this.buildMetadata(player).toBytes());
 
         int radius = Bukkit.getViewDistance() + 2;
         this.initialSync(player, radius);
@@ -106,17 +106,17 @@ public class StructureDataProvider
         if (handle.connection != null)
         {
             handle.connection.send(new ClientboundCustomPayloadPacket(
-                    new DiscardedPayload(Identifier.parse(CHANNEL_ID), this.buildMetadata().toBytes())));
+                    new DiscardedPayload(Identifier.parse(CHANNEL_ID), this.buildMetadata(player).toBytes())));
         }
     }
 
-    private ServuxStructuresPacket buildMetadata()
+    private ServuxStructuresPacket buildMetadata(Player player)
     {
         CompoundTag nbt = new CompoundTag();
         nbt.putString("name", "structure_bounding_boxes");
         nbt.putString("id", CHANNEL_ID);
         nbt.putInt("version", PROTOCOL_VERSION);
-        nbt.putString("servux", ServuxPaperReference.modString());
+        nbt.putString("servux", ServuxPaperReference.modString(player));
         nbt.putInt("timeout", ServuxPaperConfig.structuresTimeout());
 
         return ServuxStructuresPacket.Metadata(nbt);

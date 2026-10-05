@@ -27,6 +27,8 @@ Installing
 * Download `servux-paper-<minecraft>-<servux version>.jar` for your Minecraft version from
   [Releases](https://github.com/MattLavalleeMA/servux/releases) and put it in your server's `plugins/` folder.
 * Requires Paper (Folia is not supported) and Java 25.
+* Works with ViaVersion/ViaBackwards: if ViaVersion is installed, MiniHUD clients on older Minecraft
+  versions are told the server matches their version (MiniHUD otherwise rejects a server on a different version).
 * Settings are in `plugins/ServuxPaper/config.yml`. Seed sharing, weather status, and data loggers are off by default.
   Apply changes with `/servux reload`.
 * Access is controlled with standard Bukkit permission nodes (`servux.hud_data`, `servux.structures`,

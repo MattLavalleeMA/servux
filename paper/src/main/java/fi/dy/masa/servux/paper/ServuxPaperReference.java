@@ -1,9 +1,12 @@
 package fi.dy.masa.servux.paper;
 
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.slf4j.Logger;
 
 import io.papermc.paper.ServerBuildInfo;
+
+import fi.dy.masa.servux.paper.util.ViaVersionHook;
 
 /**
  * Small shared reference/logging helper, analogous to Fabric's {@code Reference} constants +
@@ -17,10 +20,14 @@ public final class ServuxPaperReference
 {
     public static final String MOD_ID = "servux";
     public static final String MOD_TYPE = "paper";
-    /** MiniHUD rejects any metadata whose "servux" string doesn't start with {@code servux-fabric-<mc>}. */
+    /** MiniHUD rejects any metadata whose "servux" string doesn't start with {@code servux-fabric-<client mc version>}. */
     private static final String WIRE_MOD_TYPE = "fabric";
 
-    private static String modString = MOD_ID + "-" + WIRE_MOD_TYPE + "-unknown-" + MOD_TYPE;
+    private static String serverMcVersion = "unknown";
+    private static String pluginVersion = "unknown";
+    private static String modString = buildModString(serverMcVersion);
+    private static boolean viaVersionEnabled = false;
+    private static boolean viaVersionFailed = false;
     private static boolean debugLogEnabled = false;
     private static Logger logger;
 
@@ -31,8 +38,22 @@ public final class ServuxPaperReference
     /** Call once from {@code onEnable()}. */
     public static void init(Plugin plugin)
     {
-        modString = MOD_ID + "-" + WIRE_MOD_TYPE + "-" + ServerBuildInfo.buildInfo().minecraftVersionId() + "-" + plugin.getPluginMeta().getVersion() + "-" + MOD_TYPE;
         logger = plugin.getSLF4JLogger();
+        serverMcVersion = ServerBuildInfo.buildInfo().minecraftVersionId();
+        pluginVersion = plugin.getPluginMeta().getVersion();
+        modString = buildModString(serverMcVersion);
+        viaVersionEnabled = plugin.getServer().getPluginManager().isPluginEnabled("ViaVersion");
+        viaVersionFailed = false;
+
+        if (viaVersionEnabled)
+        {
+            logger.info("ViaVersion detected; MiniHUD handshakes will report each client's own Minecraft version");
+        }
+    }
+
+    private static String buildModString(String mcVersion)
+    {
+        return MOD_ID + "-" + WIRE_MOD_TYPE + "-" + mcVersion + "-" + pluginVersion + "-" + MOD_TYPE;
     }
 
     public static void setDebugLogEnabled(boolean enabled)
@@ -40,10 +61,44 @@ public final class ServuxPaperReference
         debugLogEnabled = enabled;
     }
 
-    /** Mirrors Fabric's {@code Reference.MOD_STRING}. */
+    /** Mirrors Fabric's {@code Reference.MOD_STRING}, using the server's Minecraft version. */
     public static String modString()
     {
         return modString;
+    }
+
+    /**
+     * Mod string for a metadata handshake with {@code player}. MiniHUD only accepts a server whose
+     * string starts with its own Minecraft version, so when ViaVersion lets a different client
+     * version join, report the client's version instead of the server's.
+     */
+    public static String modString(Player player)
+    {
+        String clientVersion = clientMinecraftVersion(player);
+        return clientVersion.equals(serverMcVersion) ? modString : buildModString(clientVersion);
+    }
+
+    private static String clientMinecraftVersion(Player player)
+    {
+        if (viaVersionEnabled && !viaVersionFailed)
+        {
+            try
+            {
+                String version = ViaVersionHook.clientMinecraftVersion(player.getUniqueId());
+
+                if (version != null)
+                {
+                    return version;
+                }
+            }
+            catch (Exception | LinkageError e)
+            {
+                viaVersionFailed = true;
+                logger.warn("Failed to query ViaVersion for client versions; using the server's Minecraft version", e);
+            }
+        }
+
+        return serverMcVersion;
     }
 
     /** Unconditional logger, for Fabric-style {@code Servux.LOGGER.error(...)/.warn(...)} parity (not gated by `debug_log`). */
