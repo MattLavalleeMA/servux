@@ -8,6 +8,6 @@ pluginManagement {
 	}
 }
 
-// Additive Paper plugin subproject (MiniHUD protocol port MVP) - see paper/IMPLEMENTATION_PLAN.md.
+// Additive Paper plugin subproject (MiniHUD protocol port) - see paper/ARCHITECTURE.md.
 // The root project remains the untouched Fabric mod build.
 include 'paper'

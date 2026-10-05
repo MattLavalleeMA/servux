@@ -25,7 +25,7 @@ import io.papermc.paper.event.packet.PlayerChunkLoadEvent;
  * Registers and handles the {@code servux:structures} plugin channel via the plain Bukkit
  * {@link org.bukkit.plugin.messaging.Messenger} API, drives the chunk-watch trigger via
  * Paper's {@link PlayerChunkLoadEvent} (the public-API replacement for Fabric's
- * {@code MixinServerChunkLoadingManager} mixin), and handles the structures handshake.
+ * {@code MixinChunkMap} mixin), and handles the structures handshake.
  * <p>
  * MiniHUD only accepts structures metadata between world join and its single retry at the next
  * 20-tick boundary, and its login-time {@code STRUCTURES_REGISTER} is dropped client-side because

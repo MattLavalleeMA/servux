@@ -13,7 +13,7 @@ import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueOutput;
 
 /**
- * Paper-side replacement for Fabric's Mixin-based {@code NbtView}/{@code IMixinNbtWriteView}:
+ * Paper-side replacement for Fabric's Mixin-based {@code NbtView}/{@code IMixinTagValueOutput}:
  * extracts the raw {@link CompoundTag} that {@link Entity#saveWithoutId(ValueOutput)} writes into
  * a {@link TagValueOutput}, since that method takes the new "View" serialization API rather than
  * a plain NBT compound, and {@code TagValueOutput} has no public getter for the result.
@@ -25,7 +25,7 @@ import net.minecraft.world.level.storage.ValueOutput;
  * change independently), but worth double-checking first if anything in this channel misbehaves.
  *
  * @see <a href="../../../../../../../../../src/main/java/fi/dy/masa/servux/util/nbt/NbtView.java">NbtView.java (Fabric reference)</a>
- * @see <a href="../../../../../../../../../src/main/java/fi/dy/masa/servux/mixin/nbt/IMixinNbtWriteView.java">IMixinNbtWriteView.java (Fabric reference)</a>
+ * @see <a href="../../../../../../../../../src/main/java/fi/dy/masa/servux/mixin/nbt/IMixinTagValueOutput.java">IMixinTagValueOutput.java (Fabric reference)</a>
  */
 public final class NbtViewHelper
 {

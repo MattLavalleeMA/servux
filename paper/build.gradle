@@ -23,9 +23,9 @@ dependencies {
 	// Version format changed for Paper 26.1+ (no more "-R0.1-SNAPSHOT"); see paper/gradle.properties.
 	paperweight.paperDevBundle(project.paper_dev_bundle_version)
 
-	// PacketEvents is NOT required for the hud_data MVP (Phase 1) - it's only needed starting
-	// Phase 3 (structures chunk-watch trigger / entity_data NbtQuery permission override).
-	// See paper/IMPLEMENTATION_PLAN.md. Uncomment when Phase 3 work begins:
+	// PacketEvents is not used: structures' chunk-watch trigger uses Paper's PlayerChunkLoadEvent, and the
+	// vanilla NbtQuery permission override was sidestepped. See paper/ARCHITECTURE.md. Only needed if that
+	// override is ever implemented:
 	// compileOnly 'com.github.retrooper:packetevents-spigot:2.13.0'
 }
 

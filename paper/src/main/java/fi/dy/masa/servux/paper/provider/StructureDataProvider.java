@@ -47,7 +47,7 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSeriali
  * players want structure bounding-box sync, sends an initial burst of nearby structures on
  * registration, and periodically re-sends structures for chunks whose tracked data has expired -
  * including immediately queuing a refresh as soon as a player is sent a chunk that has structure
- * references (the Paper-native replacement for Fabric's {@code MixinServerChunkLoadingManager},
+ * references (the Paper-native replacement for Fabric's {@code MixinChunkMap},
  * driven by {@code StructuresChannel}'s {@code PlayerChunkLoadEvent} handler).
  * <p>
  * Simplifications vs. Fabric: no structure blacklist/whitelist entries are pre-populated by
