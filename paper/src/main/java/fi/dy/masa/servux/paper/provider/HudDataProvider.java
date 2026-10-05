@@ -322,7 +322,7 @@ public class HudDataProvider
 
         for (RecipeHolder<?> holder : recipes)
         {
-            DataResult<Tag> dr = Recipe.CODEC.encodeStart(NbtOps.INSTANCE, holder.value());
+            DataResult<Tag> dr = Recipe.DIRECT_CODEC.encodeStart(NbtOps.INSTANCE, holder.value());
 
             if (dr.result().isPresent())
             {
