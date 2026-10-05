@@ -638,9 +638,10 @@ public class HudDataProvider extends DataProviderBase
 			nbt.putBoolean("isThundering", false);
 		}
 
-		if (this.clearWeatherTime > -1)
+		// MiniHUD needs a non-negative clear time to treat clear weather as a known cycle.
+		if (!this.isRaining && !this.isThundering)
 		{
-			nbt.putInt("SetClear", this.clearWeatherTime);
+			nbt.putInt("SetClear", Math.max(this.clearWeatherTime, 0));
 		}
 
 		return nbt;
